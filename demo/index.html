@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geo Explorer — Slovakia</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --bg:#f6f8fa; --surface:#ffffff; --line:#d8dee4;
+    --ink:#1f2328; --ink-2:#52514e; --muted:#797f87;
+    --stroke:#ffffff;
+    --seq-1:#cde2fb; --seq-2:#9ec5f4; --seq-3:#5598e7; --seq-4:#2a78d6; --seq-5:#184f95;
+    --accent:#2a78d6;
+    --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1419; --surface:#171e26; --line:#273241;
+      --ink:#e6edf3; --ink-2:#b6c2cf; --muted:#8b98a5;
+      --stroke:#0f1419;
+      --seq-1:#184f95; --seq-2:#256abf; --seq-3:#3987e5; --seq-4:#6da7ec; --seq-5:#b7d3f6;
+      --accent:#6da7ec;
+      --shadow:0 2px 16px rgba(0,0,0,.4);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{padding:22px 16px 12px;max-width:1180px;margin:0 auto}
+  h1{margin:0;font-size:1.5rem;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:.9rem;margin-top:4px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px 32px;
+    display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+  @media(max-width:880px){.wrap{grid-template-columns:1fr}}
+  .controls{display:flex;gap:6px;align-items:center;margin:0 0 10px;flex-wrap:wrap}
+  .controls span{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;margin-right:2px}
+  button.m{font:inherit;font-size:.83rem;padding:5px 12px;border-radius:999px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink-2);cursor:pointer}
+  button.m:hover{border-color:var(--accent)}
+  button.m[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .mapbox{position:relative}
+  #map{height:540px;border-radius:12px;border:1px solid var(--line);
+    background:var(--surface);box-shadow:var(--shadow)}
+  @media(max-width:880px){#map{height:400px}}
+  .legend{position:absolute;left:12px;bottom:12px;z-index:500;background:var(--surface);
+    border:1px solid var(--line);border-radius:10px;padding:9px 11px;
+    box-shadow:var(--shadow);font-size:.74rem;line-height:1.5}
+  .legend b{display:block;font-size:.67rem;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:6px;font-weight:600}
+  .legend .row{display:flex;align-items:center;gap:7px;color:var(--ink-2)}
+  .sw{width:15px;height:11px;border-radius:2px;flex:none;
+    outline:1px solid var(--line);outline-offset:-1px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;box-shadow:var(--shadow)}
+  .card + .card{margin-top:12px}
+  .card h2{margin:0 0 10px;font-size:.71rem;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted);font-weight:600}
+  .sel{font-size:1.18rem;font-weight:600;margin:0 0 2px;color:var(--ink)}
+  .native{color:var(--muted);font-size:.83rem;margin:0 0 9px}
+  .selhint{color:var(--muted);font-size:.8rem;margin:8px 0 0}
+  dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.88rem}
+  dt{color:var(--muted)}
+  dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+  .links{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .links a{font-size:.8rem;text-decoration:none;color:var(--accent);
+    border:1px solid var(--line);border-radius:7px;padding:4px 10px}
+  .links a:hover{border-color:var(--accent)}
+  .sep{border:0;border-top:1px solid var(--line);margin:12px 0}
+  table{width:100%;border-collapse:collapse;font-size:.83rem}
+  th{text-align:left;font-weight:600;color:var(--muted);font-size:.67rem;
+    letter-spacing:.07em;text-transform:uppercase;padding:0 0 6px}
+  th.n,td.n{text-align:right;font-variant-numeric:tabular-nums}
+  tbody tr{cursor:pointer;border-top:1px solid var(--line)}
+  tbody tr:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+  tbody tr.on{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+  td{padding:5px 0;color:var(--ink-2)}
+  td.name{display:flex;align-items:center;gap:7px;color:var(--ink)}
+  .flag{width:100%;border-radius:6px;border:1px solid var(--line);display:block}
+  .leaflet-container{background:var(--bg);border-radius:12px;font-family:inherit}
+  .leaflet-tooltip.geo{background:var(--surface);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;box-shadow:var(--shadow);padding:7px 9px;font-size:.8rem}
+  .leaflet-tooltip.geo::before{display:none}
+  .leaflet-tooltip.geo .t{font-weight:600;margin-bottom:2px}
+  .leaflet-tooltip.geo .v{color:var(--muted);font-variant-numeric:tabular-nums}
+  footer{max-width:1180px;margin:0 auto;padding:0 16px 40px;color:var(--muted);
+    font-size:.78rem;line-height:1.6}
+  footer a{color:var(--muted)}
+  .warn{margin-top:10px;padding:9px 11px;border-radius:8px;font-size:.78rem;
+    background:color-mix(in srgb,#eda100 12%,transparent);
+    border:1px solid color-mix(in srgb,#eda100 35%,transparent)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Geo Explorer — Slovakia</h1>
+  <div class="sub">Boundary geometry and regional statistics, joined live —
+    the data <code>geo-explorer-mcp</code> serves to an AI, rendered for a human.</div>
+</header>
+
+<div class="wrap">
+  <div>
+    <div class="controls">
+      <span>Shade by</span>
+      <button class="m" id="m-pop"     aria-pressed="true">Population</button>
+      <button class="m" id="m-area"    aria-pressed="false">Area</button>
+      <button class="m" id="m-density" aria-pressed="false">Density</button>
+    </div>
+    <div class="mapbox">
+      <div id="map"></div>
+      <div class="legend" id="legend" hidden><b id="legend-title"></b><div id="legend-rows"></div></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Selected region</h2>
+      <p class="sel" id="sel-name">—</p>
+      <p class="native" id="sel-native"></p>
+      <dl id="sel-stats" hidden>
+        <dt>Population</dt><dd id="s-pop">—</dd>
+        <dt>Area</dt><dd id="s-area">—</dd>
+        <dt>Density</dt><dd id="s-den">—</dd>
+        <dt>ISO 3166-2</dt><dd id="s-iso">—</dd>
+      </dl>
+      <hr class="sep" id="sel-sep" hidden>
+      <dl id="cap-stats" hidden>
+        <dt>Capital</dt><dd id="c-name">—</dd>
+        <dt>City population</dt><dd id="c-pop">—</dd>
+        <dt>Share of region</dt><dd id="c-share">—</dd>
+      </dl>
+      <div class="links" id="sel-links"></div>
+      <p class="selhint" id="sel-hint">Click a region on the map, or a row below.</p>
+    </div>
+
+    <div class="card">
+      <h2 id="tbl-title">Regions</h2>
+      <table>
+        <thead><tr><th>Kraj</th><th class="n" id="th-v">Value</th><th class="n">Capital</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Country profile</h2>
+      <dl>
+        <dt>Official</dt><dd>Slovak Republic</dd>
+        <dt>Capital</dt><dd>Bratislava</dd>
+        <dt>Population</dt><dd>5,403,009</dd>
+        <dt>Area</dt><dd>49,037 km²</dd>
+        <dt>Subregion</dt><dd>Central Europe</dd>
+        <dt>Currency</dt><dd>Euro (€)</dd>
+        <dt>Language</dt><dd>slovenčina</dd>
+        <dt>Borders</dt><dd>AT · CZ · HU · PL · UA</dd>
+      </dl>
+    </div>
+
+    <div class="card">
+      <h2>Flag</h2>
+      <img class="flag" alt="Flag of Slovakia" src="https://flags.restcountries.com/v5/w640/sk.png">
+    </div>
+  </div>
+</div>
+
+<footer>
+  <strong>Boundaries:</strong> geoBoundaries (<a href="https://www.geoboundaries.org">geoboundaries.org</a>),
+  ADM1, representing 2017, from OpenStreetMap / Wambacher — Open Data Commons ODbL 1.0.<br>
+  <strong>Region &amp; city statistics:</strong> <a href="https://www.wikidata.org">Wikidata</a>, queried
+  live over SPARQL — CC0 1.0. <strong>Country facts:</strong> REST Countries v5.<br>
+  The two sources name regions differently ("Region of Trenčín" vs "Trenčín Region"), so they are
+  joined on a normalised key — the same <code>match_key</code> the MCP server returns.
+  <div class="warn">
+    <strong>Note for maintainers:</strong> geoBoundaries GeoJSON lives in Git LFS, and only
+    <code>media.githubusercontent.com</code> serves it to a browser.
+    <code>raw.githubusercontent.com</code> returns a 131-byte LFS <em>pointer file</em>, and the
+    <code>github.com/&hellip;/raw/&hellip;</code> URL the API publishes 302-redirects with an empty
+    <code>access-control-allow-origin</code>, which fails the browser CORS check on the redirect hop.
+    Either way the map renders blank. Also: serve this page over http, not <code>file://</code>.
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const GEOJSON_URL =
+  "https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/SVK/ADM1/geoBoundaries-SVK-ADM1_simplified.geojson";
+
+const SPARQL = `SELECT ?iso ?iLabel ?native ?pop ?areaM2 ?i ?capLabel ?capPop ?capCoord ?wiki WHERE {
+  ?country wdt:P297 "SK" .
+  ?i wdt:P17 ?country ; wdt:P300 ?iso .
+  OPTIONAL { ?i wdt:P1082 ?pop }
+  OPTIONAL { ?i p:P2046/psn:P2046 [ wikibase:quantityAmount ?areaM2 ] }
+  OPTIONAL { ?i wdt:P1705 ?native }
+  OPTIONAL { ?i wdt:P36 ?cap .
+             OPTIONAL { ?cap wdt:P1082 ?capPop }
+             OPTIONAL { ?cap wdt:P625 ?capCoord } }
+  OPTIONAL { ?wiki schema:about ?i ; schema:isPartOf <https://en.wikipedia.org/> }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en,sk" }
+} ORDER BY ?iso`;
+const WD_URL = "https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(SPARQL);
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const RAMP = () => [css("--seq-1"),css("--seq-2"),css("--seq-3"),css("--seq-4"),css("--seq-5")];
+const fmt = (n,d=0) => n==null ? "—" : n.toLocaleString("en-US",{maximumFractionDigits:d});
+
+/* Same normalisation the MCP server uses for match_key. */
+function matchKey(name){
+  if(!name) return "";
+  let f = name.normalize("NFKD").replace(/[̀-ͯ]/g,"").toLowerCase();
+  f = f.replace(/\b(region of|region|province of|province|district of|district|county of|county|state of|state|kraj|self-governing)\b/g," ");
+  return f.replace(/[^a-z0-9]/g,"");
+}
+function parsePoint(v){
+  const m = v && v.match(/Point\(([-\d.]+)\s+([-\d.]+)\)/);
+  return m ? [parseFloat(m[2]), parseFloat(m[1])] : null;
+}
+
+const METRICS = {
+  pop:     { label:"Population",       unit:"",        get:r=>r.population, dec:0, legend:"Population" },
+  area:    { label:"Area",             unit:" km²",    get:r=>r.area,       dec:0, legend:"Land area (km²)" },
+  density: { label:"Density",          unit:"/km²",    get:r=>r.density,    dec:0, legend:"People per km²" }
+};
+let metric = "pop";
+
+const map = L.map("map",{scrollWheelZoom:false,attributionControl:false}).setView([48.67,19.5],7);
+const el = id => document.getElementById(id);
+let data = {}, bins = [], activeKey = null;
+
+function binIndex(v){
+  if(v==null) return 0;
+  for(let i=0;i<bins.length;i++) if(v<=bins[i].max) return i;
+  return bins.length-1;
+}
+const fillFor = v => RAMP()[binIndex(v)];
+const valOf = r => METRICS[metric].get(r);
+
+function baseStyle(rec){
+  return { fillColor: fillFor(valOf(rec)), fillOpacity:.88, color:css("--stroke"), weight:2 };
+}
+
+function rebuild(){
+  const recs = Object.values(data);
+  const vals = recs.map(valOf).filter(v=>v!=null);
+  const lo = Math.min(...vals), hi = Math.max(...vals), step = (hi-lo)/5 || 1;
+  bins = [0,1,2,3,4].map(i=>({min:lo+step*i, max: i===4?Infinity:lo+step*(i+1)}));
+
+  const ramp = RAMP(), M = METRICS[metric];
+  el("legend-title").textContent = M.legend;
+  el("legend-rows").innerHTML = bins.map((b,i)=>
+    `<div class="row"><span class="sw" style="background:${ramp[i]}"></span>`+
+    `${fmt(b.min,M.dec)}${i===4?"+":"–"+fmt(b.max,M.dec)}</div>`).join("");
+  el("legend").hidden = false;
+
+  recs.forEach(r => { if(r.key!==activeKey) r.layer.setStyle(baseStyle(r)); });
+  recs.forEach(r => r.layer.setTooltipContent(
+    `<div class="t">${r.name}</div><div class="v">${fmt(valOf(r),M.dec)}${M.unit}</div>`));
+
+  el("tbl-title").textContent = "Regions by " + M.label.toLowerCase();
+  el("th-v").textContent = M.label;
+  const sorted = recs.slice().sort((a,b)=>(valOf(b)??-1)-(valOf(a)??-1));
+  el("tbody").innerHTML = sorted.map(r=>
+    `<tr data-k="${r.key}"><td class="name"><span class="sw" style="background:${fillFor(valOf(r))}"></span>`+
+    `${r.short}</td><td class="n">${fmt(valOf(r),M.dec)}</td>`+
+    `<td class="n">${r.capital?r.capital.name:"—"}</td></tr>`).join("");
+  [...el("tbody").rows].forEach(row=>{
+    row.onclick = ()=>select(row.dataset.k);
+    row.classList.toggle("on", row.dataset.k===activeKey);
+  });
+}
+
+function select(key){
+  activeKey = key;
+  Object.values(data).forEach(r=>{
+    r.layer.setStyle(r.key===key
+      ? {weight:3,color:css("--accent"),fillOpacity:1}
+      : baseStyle(r));
+    if(r.key===key) r.layer.bringToFront();
+  });
+  const r = data[key];
+  el("sel-name").textContent = r.name;
+  el("sel-native").textContent = r.native.length ? r.native.join(" · ") : "";
+  el("s-pop").textContent  = fmt(r.population);
+  el("s-area").textContent = fmt(r.area) + " km²";
+  el("s-den").textContent  = r.density==null ? "—" : fmt(r.density) + " /km²";
+  el("s-iso").textContent  = r.iso || "—";
+  el("sel-stats").hidden = false;
+
+  if(r.capital){
+    el("c-name").textContent = r.capital.name;
+    el("c-pop").textContent  = fmt(r.capital.population);
+    el("c-share").textContent = (r.capital.population && r.population)
+      ? (r.capital.population/r.population*100).toFixed(1)+"%" : "—";
+    el("cap-stats").hidden = false; el("sel-sep").hidden = false;
+  } else { el("cap-stats").hidden = true; el("sel-sep").hidden = true; }
+
+  el("sel-links").innerHTML =
+    (r.wikipedia ? `<a href="${r.wikipedia}" target="_blank" rel="noopener">Wikipedia ↗</a>` : "") +
+    (r.wikidata  ? `<a href="${r.wikidata}"  target="_blank" rel="noopener">Wikidata ↗</a>`  : "");
+  el("sel-hint").textContent = "geoBoundaries ADM1 · joined to Wikidata on \"" + r.key + "\"";
+  [...el("tbody").rows].forEach(row=>row.classList.toggle("on", row.dataset.k===key));
+  map.fitBounds(r.layer.getBounds(),{padding:[30,30]});
+}
+
+Promise.all([
+  fetch(GEOJSON_URL).then(r=>{ if(!r.ok) throw new Error("geometry HTTP "+r.status); return r.json(); }),
+  fetch(WD_URL,{headers:{Accept:"application/sparql-results+json"}})
+    .then(r=>{ if(!r.ok) throw new Error("Wikidata HTTP "+r.status); return r.json(); })
+]).then(([gj, wd])=>{
+
+  // Merge Wikidata rows: bilingual regions emit one row per native label.
+  const stats = {};
+  for(const row of wd.results.bindings){
+    const g = k => row[k] && row[k].value;
+    const key = matchKey(g("iLabel"));
+    if(!key) continue;
+    if(!stats[key]){
+      const pt = parsePoint(g("capCoord"));
+      stats[key] = {
+        iso:g("iso"), label:g("iLabel"), native:[],
+        population: g("pop")  ? Math.round(+g("pop"))  : null,
+        // Normalised value: SI base units (m2). The raw wdt:P2046 is
+        // whatever unit an editor typed - km2, hectares or m2 - so reading
+        // it directly is wrong by up to a factor of a million.
+        wdArea:     g("areaM2") ? +g("areaM2") / 1e6 : null,
+        capital: g("capLabel") ? {
+          name:g("capLabel"),
+          population: g("capPop") ? Math.round(+g("capPop")) : null,
+          lat: pt?pt[0]:null, lng: pt?pt[1]:null } : null,
+        wikidata: (g("i")||"").replace("http://www.wikidata.org/entity/","https://www.wikidata.org/wiki/"),
+        wikipedia: g("wiki")||null
+      };
+    }
+    const n = g("native");
+    if(n && !stats[key].native.includes(n)) stats[key].native.push(n);
+  }
+
+  L.geoJSON(gj,{
+    onEachFeature:(f,layer)=>{
+      const nm = (f.properties&&f.properties.shapeName)||"Unnamed";
+      const key = matchKey(nm);
+      const st = stats[key] || {};
+      const area = st.wdArea!=null ? st.wdArea : null;
+      const rec = {
+        key, layer, name: st.label || nm,
+        short: nm.replace(/^Region of /,""),
+        native: st.native || [], iso: st.iso,
+        population: st.population ?? null, area,
+        density: (st.population!=null && area) ? st.population/area : null,
+        capital: st.capital || null,
+        wikidata: st.wikidata, wikipedia: st.wikipedia
+      };
+      data[key] = rec;
+      layer.bindTooltip("", {className:"geo", sticky:true});
+      layer.on("mouseover",()=>{ if(key!==activeKey) layer.setStyle({weight:3}); });
+      layer.on("mouseout", ()=>{ if(key!==activeKey) layer.setStyle(baseStyle(rec)); });
+      layer.on("click", ()=>select(key));
+    }
+  }).addTo(map);
+
+  Object.values(data).forEach(r=>{
+    if(!r.capital || r.capital.lat==null) return;
+    L.circleMarker([r.capital.lat, r.capital.lng],{
+      radius:4.5, color:css("--stroke"), weight:2,
+      fillColor:css("--ink"), fillOpacity:1
+    }).addTo(map).bindTooltip(
+      `<div class="t">${r.capital.name}</div>`+
+      `<div class="v">${fmt(r.capital.population)} people · capital of ${r.short}</div>`,
+      {className:"geo"});
+  });
+
+  rebuild();
+  map.fitBounds(L.featureGroup(Object.values(data).map(r=>r.layer)).getBounds(),{padding:[12,12]});
+
+}).catch(err=>{
+  el("sel-name").textContent = "Could not load data";
+  el("sel-hint").textContent = String(err);
+});
+
+["pop","area","density"].forEach(k=>{
+  el("m-"+k).onclick = ()=>{
+    metric = k;
+    ["pop","area","density"].forEach(o=>el("m-"+o).setAttribute("aria-pressed", String(o===k)));
+    rebuild();
+  };
+});
+</script>
+</body>
+</html>

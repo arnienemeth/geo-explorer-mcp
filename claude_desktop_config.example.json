@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "geo-explorer": {
+      "command": "C:\\Private\\learning\\MCP\\Geography\\geo-explorer-mcp\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Private\\learning\\MCP\\Geography\\geo-explorer-mcp\\server.py"
+      ]
+    }
+  }
+}
