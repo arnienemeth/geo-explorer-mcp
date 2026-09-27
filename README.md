@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.arnienemeth/geo-explorer-mcp -->
+
 # geo-explorer-mcp
 
 An [MCP](https://modelcontextprotocol.io) server that serves **country facts,
