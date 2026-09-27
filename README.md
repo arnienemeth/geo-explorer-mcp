@@ -29,7 +29,7 @@ telling the model how to normalise `get_map_data`'s names to match it.
 ## Quick start
 
 ```bash
-git clone https://github.com/arninemeth-prog/geo-explorer-mcp
+git clone https://github.com/arnienemeth/geo-explorer-mcp
 cd geo-explorer-mcp
 uv sync
 ```

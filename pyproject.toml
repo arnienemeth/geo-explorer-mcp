@@ -6,7 +6,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 authors = [
-    { name = "arninemeth-prog", email = "arni.nemeth@gmail.com" }
+    { name = "arnienemeth", email = "arni.nemeth@gmail.com" }
 ]
 keywords = ["mcp", "model-context-protocol", "geography", "geojson", "wikidata", "maps"]
 classifiers = [
@@ -23,6 +23,6 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/arninemeth-prog/geo-explorer-mcp"
-Repository = "https://github.com/arninemeth-prog/geo-explorer-mcp"
-Issues = "https://github.com/arninemeth-prog/geo-explorer-mcp/issues"
+Homepage = "https://github.com/arnienemeth/geo-explorer-mcp"
+Repository = "https://github.com/arnienemeth/geo-explorer-mcp"
+Issues = "https://github.com/arnienemeth/geo-explorer-mcp/issues"
