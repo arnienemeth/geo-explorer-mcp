@@ -76,17 +76,28 @@ Then ask it something like:
 
 ## Demo page
 
-`demo/index.html` renders Slovakia's 8 *kraje* from the same two sources the
+`demo/index.html` renders any of four countries from the same two sources the
 server uses, joined in the browser: shading by population, area or density,
-capital markers, and per-region links out to Wikipedia and Wikidata.
+capital markers, a sortable table, and per-region links to Wikipedia and
+Wikidata. One page, parameterised by country — because the server is generic.
 
 It must be **served over http**, not opened as a file — a `file://` page has a
 null origin and the browser blocks its cross-origin fetches:
 
 ```bash
 cd demo
-python -m http.server 8000     # then open http://localhost:8000
+python -m http.server 8000
 ```
+
+| | Regions | Joined to statistics |
+|---|---|---|
+| [Slovakia](http://localhost:8000/?c=SVK) | 8 kraje | 8 |
+| [Germany](http://localhost:8000/?c=DEU) | 16 Bundesländer | 16 |
+| [United Kingdom](http://localhost:8000/?c=GBR) | 4 countries | 4 |
+| [United States](http://localhost:8000/?c=USA) | 56 states and territories | 55 |
+
+The single US miss is the Virgin Islands, which has no ISO 3166-2 entry in
+Wikidata. Regions without a match render grey rather than being dropped.
 
 ## Tests
 
@@ -95,8 +106,10 @@ uv run python probe2.py        # all three tools, plus the boundary/statistics j
 uv run python probe_names.py   # country-name resolution across languages and spellings
 ```
 
-`probe2.py` asserts that `geojson_url` is the resolved media URL — see the first
-field note below for why that assertion exists.
+`probe2.py` runs all four demo countries and asserts two things that previously
+broke: that `geojson_url` is the resolved Git LFS media URL, and that at least
+90% of boundary regions join to their statistics. Germany sat at 50% before
+native-name matching landed.
 
 ## Field notes
 
@@ -141,6 +154,31 @@ fewer boundary shapes than entries. `get_region_details` returns
 name aggregate on purpose. The server works around both with a three-step
 fallback: the name aggregate, then the translations endpoint, then a locally
 built diacritic-folded index.
+
+**A Wikidata query that works for a small country can time out for a large
+one.** Resolving subdivisions via `?i wdt:P17 ?country` makes Wikidata scan
+everything in that country: fine for Slovakia, `HTTP 504` for the United States.
+Filtering on the ISO 3166-2 prefix instead — `FILTER(STRSTARTS(?iso, "US-"))` —
+returns the same 56 rows in 0.9 seconds, because those codes are *defined* as
+`<alpha-2>-<subdivision>`, so the prefix already is the country filter.
+
+**The same region has different names in each source.** geoBoundaries says
+`Bayern`, `Sachsen`, `Thüringen`; Wikidata's English labels are `Bavaria`,
+`Saxony`, `Thuringia`. Matching on the English label alone joined 8 of Germany's
+16 states. Building a key from *every* name variant, native names included,
+joins all 16 — which is why `get_region_details` returns `match_keys` (plural).
+
+**A bounding box lies about shapes that cross the antimeridian.** Alaska's
+Aleutian Islands run past 180°, so its box reads `-179.15 .. 179.78` — a
+359-degree span. `fitBounds` on that zooms out to the whole globe and shrinks
+the mainland to a smudge, with no error. Russia, Fiji and New Zealand share the
+trap. The demo refuses any box wider than 180° and falls back to a fixed view.
+
+**The `hidden` attribute loses to any author `display` rule.** It works through
+the browser's default stylesheet, the weakest source there is, so an element
+styled `display:grid` stays visible when you set `hidden`. Symptom: a loading
+overlay that never goes away, covering a map that loaded perfectly. Guard it
+with `[hidden]{display:none !important}`.
 
 **Some upstream region names are damaged.** geoBoundaries' ADM2 names for
 Slovakia are truncated and mistransliterated (`Prešov` → `Predov`, `Dolný Kubín`

@@ -8,78 +8,89 @@ to the demo page, which reimplements the same idea in JavaScript.
 """
 
 import asyncio
-import json
+import re
+import unicodedata
 
 from fastmcp import Client
 
 from server import mcp
 
+# geoBoundaries ADM1 counts, verified against the published geometry.
+COUNTRIES = [
+    ("Slovakia", 8),
+    ("Germany", 16),
+    ("United Kingdom", 4),
+    ("United States", 56),
+]
 
-async def call(client, tool, args):
-    print(f"\n{'=' * 62}\n{tool}({args})\n{'=' * 62}")
-    try:
-        result = await client.call_tool(tool, args)
-        return result.data
-    except Exception as exc:
-        print(f"FAILED: {type(exc).__name__}: {exc}")
-        return None
+
+def key(name: str) -> str:
+    """Mirror of the server's _match_key, for checking the join independently."""
+    f = unicodedata.normalize("NFKD", name or "")
+    f = f.encode("ascii", "ignore").decode().lower()
+    f = re.sub(r"[^a-z0-9\s]", " ", f)
+    f = re.sub(r"\b(the|of|region|province|state|county|district|kraj|freistaat|"
+               r"free state|commonwealth|united states|us|u s|self-governing|"
+               r"metropolitan|autonomous|land|bundesland)\b", " ", f)
+    return re.sub(r"[^a-z0-9]", "", f)
 
 
 async def main():
+    failures = []
+
     async with Client(mcp) as client:
-        tools = await client.list_tools()
-        print("tools advertised:", [t.name for t in tools])
+        tools = [t.name for t in await client.list_tools()]
+        print("tools advertised:", tools)
+        assert len(tools) == 3, tools
 
-        # 1. Country profile
-        d = await call(client, "get_country_profile", {"country": "Slovakia"})
-        if d:
-            print(f"  {d['name']} | pop {d['population']:,} | {d['area_km2']:,} km2")
-            print(f"  capital: {d['capitals'][0]['name']} "
-                  f"({d['capitals'][0]['latitude']}, {d['capitals'][0]['longitude']})")
-            print(f"  language: {d['languages'][0]['native_name']}")
+        print("\n=== get_country_profile ===")
+        d = (await client.call_tool("get_country_profile", {"country": "Slovensko"})).data
+        print(f"  'Slovensko' -> {d['name']} | pop {d['population']:,} | "
+              f"{d['capitals'][0]['name']} | {d['languages'][0]['native_name']}")
 
-        # 2. Boundaries
-        d = await call(client, "get_map_data", {"country": "Slovakia", "level": "ADM1"})
-        if d:
-            print(f"  {d['region_count']} regions, licence: {d['license']}")
-            print(f"  geojson_url host: {d['geojson_url'].split('/')[2]}")
-            assert "media.githubusercontent.com" in d["geojson_url"], \
-                "geojson_url must be the resolved LFS media URL"
-            print("  OK: url is browser-fetchable")
-            print(f"  quality note: {d['data_quality_note']}")
+        print("\n=== get_map_data + get_region_details, joined ===")
+        for name, expected in COUNTRIES:
+            m = (await client.call_tool(
+                "get_map_data", {"country": name, "level": "ADM1"})).data
+            if "error" in m:
+                failures.append(f"{name}: map_data {m['error']}")
+                print(f"  {name:16} FAILED: {m['error']}")
+                continue
 
-        # 3. Wikidata region statistics  <-- the new one
-        d = await call(client, "get_region_details", {"country": "Slovakia"})
-        if d and "error" not in d:
-            print(f"  {d['region_count']} regions from Wikidata")
-            for r in d["regions"]:
-                cap = r["capital"] or {}
-                print(f"  {r['iso_3166_2']}  {r['name'][:22]:22} "
-                      f"pop={str(r['population']):>8}  area={str(r['area_km2']):>8}  "
-                      f"cap={cap.get('name', '-')} ({cap.get('population')})")
-                print(f"        native={r['native_names']}  key={r['match_key']}")
-            print(f"\n  wikipedia sample: {d['regions'][0]['wikipedia_url']}")
-            print(f"  wikidata  sample: {d['regions'][0]['wikidata_url']}")
-        elif d:
-            print("  ", d)
+            assert "media.githubusercontent.com" in m["geojson_url"], \
+                f"{name}: geojson_url must be the resolved Git LFS media URL"
 
-        # 4. The join the whole design depends on
-        m = await call(client, "get_map_data", {"country": "Slovakia", "level": "ADM1"})
-        w = await call(client, "get_region_details", {"country": "Slovakia"})
-        if m and w and "error" not in w:
-            import re
-            import unicodedata
+            w = (await client.call_tool("get_region_details", {"country": name})).data
+            if "error" in w:
+                failures.append(f"{name}: region_details {w['error']}")
+                print(f"  {name:16} FAILED: {w['error']}")
+                continue
 
-            def key(n):
-                f = unicodedata.normalize("NFKD", n or "")
-                f = f.encode("ascii", "ignore").decode().lower()
-                f = re.sub(r"\b(region of|region|kraj)\b", " ", f)
-                return re.sub(r"[^a-z0-9]", "", f)
+            # Join every boundary name against every Wikidata name variant.
+            index = set()
+            for r in w["regions"]:
+                index.update(r.get("match_keys") or [r["match_key"]])
+            names = [r["name"] for r in m["regions"]]
+            hit = sum(1 for n in names if key(n) in index)
 
-            gb = {key(r["name"]) for r in m["regions"]}
-            wd = {r["match_key"] for r in w["regions"]}
-            print(f"\n  JOIN: {len(gb & wd)} of {len(gb)} boundary regions matched")
-            print(f"  unmatched: {(gb ^ wd) or 'none'}")
+            flag = "" if len(names) == expected else f"  (expected {expected})"
+            print(f"  {name:16} boundaries={len(names):3}  wikidata={w['region_count']:3}  "
+                  f"joined={hit:3}/{len(names)}{flag}")
+
+            if len(names) != expected:
+                failures.append(f"{name}: got {len(names)} regions, expected {expected}")
+            if hit < len(names) * 0.9:
+                failures.append(f"{name}: only {hit}/{len(names)} joined")
+            for note in (w.get("data_quality_notes") or []):
+                print(f"      note: {note[:96]}...")
+
+    print()
+    if failures:
+        print(f"{len(failures)} FAILURE(S):")
+        for f in failures:
+            print("  -", f)
+        raise SystemExit(1)
+    print("all checks passed")
 
 
 asyncio.run(main())

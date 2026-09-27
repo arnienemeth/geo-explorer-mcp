@@ -344,6 +344,11 @@ _wikidata_cache: dict[str, list] = {}
 
 # P297 ISO 3166-1 alpha-2 (country) | P300 ISO 3166-2 (subdivision)
 # P1082 population | P2046 area | P1705 native label | P36 capital | P625 coords
+# Filtering on the ISO 3166-2 prefix is the country filter -- those codes are
+# defined as <alpha-2>-<subdivision>. Joining through ?i wdt:P17 ?country
+# instead makes Wikidata scan everything in the country and TIMES OUT (504)
+# for large ones: the USA took >60s that way and 0.9s this way.
+#
 # NOTE: no '#' comments inside this query. It is collapsed to a single line
 # before sending, and in SPARQL '#' comments out the rest of the LINE -- which
 # after collapsing is the whole query. (Symptom: HTTP 400 from Wikidata.)
@@ -353,8 +358,8 @@ _wikidata_cache: dict[str, list] = {}
 # mixes km2, hectares and m2 -- so reading it raw is wrong by up to 1e6.
 _SPARQL_REGIONS = """
 SELECT ?iso ?iLabel ?native ?pop ?areaM2 ?i ?typeLabel ?capLabel ?capPop ?capCoord ?wiki WHERE {
-  ?country wdt:P297 "__A2__" .
-  ?i wdt:P17 ?country ; wdt:P300 ?iso .
+  ?i wdt:P300 ?iso .
+  FILTER(STRSTARTS(?iso, "__A2__-"))
   OPTIONAL { ?i wdt:P1082 ?pop }
   OPTIONAL { ?i p:P2046/psn:P2046 [ wikibase:quantityAmount ?areaM2 ] }
   OPTIONAL { ?i wdt:P1705 ?native }
@@ -371,17 +376,21 @@ SELECT ?iso ?iLabel ?native ?pop ?areaM2 ?i ?typeLabel ?capLabel ?capPop ?capCoo
 def _match_key(name: str) -> str:
     """Normalise a region name so geoBoundaries and Wikidata spellings join.
 
-    geoBoundaries says "Region of Banska Bystrica", Wikidata says
-    "Banska Bystrica Region". Strip the wrapper words, fold diacritics and
-    punctuation, and both collapse to "banskabystrica".
+    The two sources use different conventions for the same place:
+    "Region of Banska Bystrica" vs "Banska Bystrica Region"; "Bayern" vs
+    "Bavaria" (matched via the native name); "Commonwealth of the Northern
+    Mariana Islands" vs "Northern Mariana Islands". Folding diacritics,
+    punctuation and the wrapper words collapses them onto one key.
     """
     if not name:
         return ""
     folded = unicodedata.normalize("NFKD", name)
     folded = folded.encode("ascii", "ignore").decode().lower()
+    folded = re.sub(r"[^a-z0-9\s]", " ", folded)
     folded = re.sub(
-        r"\b(region of|region|province of|province|district of|district|"
-        r"county of|county|state of|state|kraj|self-governing)\b",
+        r"\b(the|of|region|province|state|county|district|kraj|freistaat|"
+        r"free state|commonwealth|united states|us|u s|self-governing|"
+        r"metropolitan|autonomous|land|bundesland)\b",
         " ", folded)
     return re.sub(r"[^a-z0-9]", "", folded)
 
@@ -481,11 +490,16 @@ async def get_region_details(country: str) -> dict:
                             "https://www.wikidata.org/wiki/") or None,
                         "wikipedia_url": g("wiki"),
                         "match_key": _match_key(g("iLabel") or ""),
+                        "match_keys": [],
                     }
                     merged[iso] = entry
                 native = g("native")
                 if native and native not in entry["native_names"]:
                     entry["native_names"].append(native)
+                for variant in (g("iLabel"), native):
+                    vkey = _match_key(variant or "")
+                    if vkey and vkey not in entry["match_keys"]:
+                        entry["match_keys"].append(vkey)
                 kind = g("typeLabel")
                 if kind and kind not in entry["subdivision_types"]:
                     entry["subdivision_types"].append(kind)
@@ -528,9 +542,13 @@ async def get_region_details(country: str) -> dict:
         "regions": regions,
         "data_quality_notes": notes or None,
         "join_hint": (
-            "Match these to get_map_data's regions using 'match_key': apply the "
-            "same normalisation to that tool's region names (lowercase, strip "
-            "diacritics and the words 'region of'/'region', remove non-alphanumerics)."
+            "Normalise get_map_data's region names the same way -- lowercase, "
+            "strip diacritics, punctuation and wrapper words such as 'region', "
+            "'state', 'freistaat', 'commonwealth', 'the', 'of' -- then look the "
+            "result up in 'match_keys'. Use 'match_keys' (every name variant, "
+            "including native ones) rather than 'match_key' (English label only): "
+            "geoBoundaries calls it 'Bayern' where Wikidata's English label is "
+            "'Bavaria', and only the native name bridges those."
         ),
         "attribution": ("Region statistics from Wikidata (wikidata.org), CC0 1.0. "
                         "Areas are Wikidata normalised values converted from m2 to km2."),
