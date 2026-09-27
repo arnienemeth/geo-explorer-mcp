@@ -5,3 +5,6 @@ __pycache__/
 .pytest_cache/
 dist/
 *.egg-info/
+mcp-publisher.exe
+mcp-publisher
+*.tar.gz
