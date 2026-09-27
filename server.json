@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.arnienemeth/geo-explorer-mcp",
+  "description": "Country facts, administrative boundaries and regional statistics as structured data, for building interactive geography.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/arnienemeth/geo-explorer-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "geo-explorer-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "RESTCOUNTRIES_API_KEY",
+          "description": "Free API key from https://restcountries.com/sign-up, used for country facts.",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "GEO_EXPLORER_CONTACT",
+          "description": "A contact URL or email placed in the User-Agent sent to Wikidata. Wikimedia rejects requests without one.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

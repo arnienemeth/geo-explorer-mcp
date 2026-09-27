@@ -46,6 +46,12 @@ GEO_EXPLORER_CONTACT=https://github.com/you/your-repo
 `GEO_EXPLORER_CONTACT` goes into the User-Agent sent to Wikidata. Wikimedia
 requires a contact URL or email and answers anything else with `403`.
 
+Once published to PyPI it also installs with no clone at all:
+
+```bash
+uvx geo-explorer-mcp
+```
+
 Try it in the MCP Inspector:
 
 ```bash
@@ -100,6 +106,19 @@ python -m http.server 8000
 
 The single US miss is the Virgin Islands, which has no ISO 3166-2 entry in
 Wikidata. Regions without a match render grey rather than being dropped.
+
+## Layout
+
+```
+server.py                      entry point kept at the root (a shim)
+src/geo_explorer_mcp/server.py the implementation
+demo/index.html                the browser demo
+server.json                    MCP registry metadata
+```
+
+`server.py` at the root re-exports the server object, so the Claude Desktop
+config, `fastmcp dev inspector server.py` and the probe scripts all keep working
+while the package underneath stays publishable.
 
 ## Tests
 

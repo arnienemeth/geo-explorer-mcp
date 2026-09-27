@@ -13,7 +13,9 @@ import asyncio
 
 import httpx
 
-from server import _resolve_codes
+# Reaches into an internal, so it imports the module directly rather than
+# through the root shim, which only re-exports the public surface.
+from geo_explorer_mcp.server import _resolve_codes
 
 CASES = [
     ("Hungary",       "English common name",            "HU"),
