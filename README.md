@@ -2,6 +2,8 @@
 
 # geo-explorer-mcp
 
+Listed in mcprush: https://mcprush.com/arnienemeth/geo-explorer-mcp
+
 An [MCP](https://modelcontextprotocol.io) server that serves **country facts,
 administrative boundaries and regional statistics** as structured data, so an
 AI assistant can build interactive geography instead of reciting it.
